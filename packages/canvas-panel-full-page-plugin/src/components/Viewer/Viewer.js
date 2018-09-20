@@ -74,7 +74,15 @@ class Viewer extends Component {
   getContainer = () => this.container;
 
   render() {
-    const { manifest, title, children, bem, style } = this.props;
+    const { manifest, jsonLd, title, children, bem, style } = this.props;
+
+    const manifestProps = {};
+    if (manifest) {
+      manifestProps.manifest = manifest;
+    }
+    if (jsonLd) {
+      manifestProps.jsonLd = jsonLd;
+    }
     return (
       <div ref={ref => (this.container = ref)} className={bem} style={style}>
         <ExploreButton
@@ -84,7 +92,7 @@ class Viewer extends Component {
         {this.state.interactive ? (
           <ZoomButtons onZoomIn={this.zoomIn} onZoomOut={this.zoomOut} />
         ) : null}
-        <Manifest url={manifest}>
+        <Manifest {...manifestProps}>
           <CanvasProvider>
             <FullPageViewport
               setRef={this.setViewport}
