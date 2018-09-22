@@ -94,9 +94,14 @@ class Viewer extends Component {
         <ExploreButton
           interactive={this.state.interactive}
           onClick={this.toggleInteractive}
+          style={{ zIndex: 12 }}
         />
         {this.state.interactive ? (
-          <ZoomButtons onZoomIn={this.zoomIn} onZoomOut={this.zoomOut} />
+          <ZoomButtons
+            onZoomIn={this.zoomIn}
+            onZoomOut={this.zoomOut}
+            style={{ zIndex: 12 }}
+          />
         ) : null}
         {ready ? (
           <Manifest {...manifestProps}>
