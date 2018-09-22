@@ -7,15 +7,20 @@ class ScrollDownIcon extends Component {
   state = { hidden: false };
 
   componentWillMount() {
-    this.props.getContainer().addEventListener('scroll', this.onScroll);
-    if (getCurrentScrollY(this.props.getContainer()) > 100) {
-      this.setState({ hidden: true });
-      this.props.getContainer().removeEventListener('scroll', this.onScroll);
+    const container = this.props.getContainer();
+    if (container) {
+      container.addEventListener('scroll', this.onScroll);
+      if (getCurrentScrollY(this.props.getContainer()) > 100) {
+        this.setState({ hidden: true });
+        container.removeEventListener('scroll', this.onScroll);
+      }
     }
   }
 
   onScroll = () => {
-    if (getCurrentScrollY(this.props.getContainer()) > 100) {
+    const container = this.props.getContainer();
+
+    if (container && getCurrentScrollY(container) > 100) {
       this.setState({ hidden: true });
       this.props.getContainer().removeEventListener('scroll', this.onScroll);
     }

@@ -71,7 +71,7 @@ class Viewer extends Component {
     });
   };
 
-  getContainer = () => this.container;
+  getContainer = () => this.container.current;
 
   render() {
     const { manifest, jsonLd, title, children, bem, style } = this.props;
@@ -84,7 +84,7 @@ class Viewer extends Component {
       manifestProps.jsonLd = jsonLd;
     }
     return (
-      <div ref={ref => (this.container = ref)} className={bem} style={style}>
+      <div ref={this.container} className={bem} style={style}>
         <ExploreButton
           interactive={this.state.interactive}
           onClick={this.toggleInteractive}
@@ -138,7 +138,8 @@ class Viewer extends Component {
                   <button
                     className={bem.element('start-button')}
                     onClick={() =>
-                      (this.container.scrollTop = window.innerHeight - 10)
+                      (this.container.current.scrollTop =
+                        window.innerHeight - 10)
                     }
                   >
                     Start tour
@@ -153,11 +154,11 @@ class Viewer extends Component {
                       viewport={this.state.viewport}
                       disabled={this.state.interactive}
                       onNext={(annotation, key) =>
-                        (this.container.scrollTop =
+                        (this.container.current.scrollTop =
                           (key + 1) * window.innerHeight - 10)
                       }
                       onPrevious={(annotation, key) =>
-                        (this.container.scrollTop =
+                        (this.container.current.scrollTop =
                           (key + 1) * window.innerHeight)
                       }
                     />
