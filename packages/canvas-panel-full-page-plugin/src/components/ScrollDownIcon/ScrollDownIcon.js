@@ -22,7 +22,7 @@ class ScrollDownIcon extends Component {
 
     if (container && getCurrentScrollY(container) > 100) {
       this.setState({ hidden: true });
-      this.props.getContainer().removeEventListener('scroll', this.onScroll);
+      container.removeEventListener('scroll', this.onScroll);
     }
   };
 
