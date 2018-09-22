@@ -6,7 +6,7 @@ import getCurrentScrollY from '../../utils/getCurrentScrollY';
 class ScrollDownIcon extends Component {
   state = { hidden: false };
 
-  componentWillMount() {
+  componentDidMount() {
     const container = this.props.getContainer();
     if (container) {
       container.addEventListener('scroll', this.onScroll);

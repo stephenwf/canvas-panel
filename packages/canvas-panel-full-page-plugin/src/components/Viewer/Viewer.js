@@ -104,6 +104,7 @@ class Viewer extends Component {
               <FullPageViewport
                 setRef={this.setViewport}
                 interactive={this.state.interactive}
+                zIndex={5}
               >
                 <SingleTileSource viewportController={true}>
                   <OpenSeadragonViewport
@@ -135,6 +136,7 @@ class Viewer extends Component {
                   updater={this.state.updater}
                   disabled={this.state.interactive}
                   getContainer={this.getContainer}
+                  style={{ zIndex: 11 }}
                 >
                   <TitlePanel
                     getContainer={this.getContainer}
