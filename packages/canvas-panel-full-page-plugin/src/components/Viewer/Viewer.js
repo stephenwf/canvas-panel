@@ -104,6 +104,7 @@ class Viewer extends Component {
               <FullPageViewport
                 setRef={this.setViewport}
                 interactive={this.state.interactive}
+                getContainer={this.getContainer}
                 zIndex={5}
               >
                 <SingleTileSource viewportController={true}>
@@ -147,8 +148,7 @@ class Viewer extends Component {
                     <button
                       className={bem.element('start-button')}
                       onClick={() =>
-                        (this.container.current.scrollTop =
-                          window.innerHeight - 10)
+                        (this.container.scrollTop = window.innerHeight - 10)
                       }
                     >
                       Start tour
@@ -163,11 +163,11 @@ class Viewer extends Component {
                         viewport={this.state.viewport}
                         disabled={this.state.interactive}
                         onNext={(annotation, key) =>
-                          (this.container.current.scrollTop =
+                          (this.container.scrollTop =
                             (key + 1) * window.innerHeight - 10)
                         }
                         onPrevious={(annotation, key) =>
-                          (this.container.current.scrollTop =
+                          (this.container.scrollTop =
                             (key + 1) * window.innerHeight)
                         }
                       />

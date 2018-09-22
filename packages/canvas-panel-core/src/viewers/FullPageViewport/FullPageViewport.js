@@ -8,6 +8,24 @@ class FullPageViewport extends Component {
     position: 'fixed',
   };
 
+  state = {
+    position: {},
+  };
+
+  componentDidMount() {
+    if (this.props.getContainer) {
+      const container = this.props.getContainer();
+      console.log(container);
+      try {
+        const { top, left, width, height } = container.getBoundingClientRect();
+        this.setState({ position: { top, left, width, height } });
+        console.log({ top, left, width, height });
+      } catch (e) {
+        console.warn(e);
+      }
+    }
+  }
+
   render() {
     const {
       children,
@@ -17,17 +35,22 @@ class FullPageViewport extends Component {
       position,
       ...props
     } = this.props;
-    const computedStyle = Object.assign(
-      {
-        position: position === 'fixed' ? 'fixed' : 'absolute',
-        top: 0,
-        left: 0,
-        bottom: 0,
-        right: 0,
-        zIndex: zIndex || 10,
-      },
-      style
-    );
+    const computedStyle = {
+      position: position === 'fixed' ? 'fixed' : 'absolute',
+      top: this.state.top,
+      left: this.state.left,
+      zIndex: zIndex || 10,
+      ...this.state.position,
+      ...style,
+    };
+
+    if (position === 'fixed' && !computedStyle.height) {
+      computedStyle.bottom = 0;
+    }
+
+    if (position === 'fixed' && !computedStyle.width) {
+      computedStyle.right = 0;
+    }
 
     if (interactive === false) {
       computedStyle.pointerEvents = 'none';
