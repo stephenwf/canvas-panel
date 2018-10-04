@@ -28,19 +28,26 @@ class SlideShow extends Component {
           {fullscreenProps => (
             <Manifest url={manifestUri}>
               <RangeNavigationProvider>
-                {({
-                  manifest,
-                  canvas,
-                  canvasList,
-                  currentIndex,
-                  previousRange,
-                  nextRange,
-                  region,
-                }) => {
+                {rangeProps => {
+                  const {
+                    manifest,
+                    canvas,
+                    canvasList,
+                    currentIndex,
+                    previousRange,
+                    nextRange,
+                    region,
+                  } = rangeProps;
                   return (
                     <div className={bem.element('inner-frame')}>
                       <Responsive
-                        phoneOnly={() => <MobilePageView manifest={manifest} />}
+                        phoneOnly={props => (
+                          <MobilePageView manifest={manifest} {...props} />
+                        )}
+                        previousRange={previousRange}
+                        nextRange={nextRange}
+                        fullscreenProps={fullscreenProps}
+                        {...rangeProps}
                       >
                         <SimpleSlideTransition id={currentIndex}>
                           <Slide

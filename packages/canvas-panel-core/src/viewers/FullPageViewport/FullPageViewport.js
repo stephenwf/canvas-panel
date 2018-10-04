@@ -15,11 +15,9 @@ class FullPageViewport extends Component {
   componentDidMount() {
     if (this.props.getContainer) {
       const container = this.props.getContainer();
-      console.log(container);
       try {
         const { top, left, width, height } = container.getBoundingClientRect();
         this.setState({ position: { top, left, width, height } });
-        console.log({ top, left, width, height });
       } catch (e) {
         console.warn(e);
       }
@@ -54,6 +52,10 @@ class FullPageViewport extends Component {
 
     if (interactive === false) {
       computedStyle.pointerEvents = 'none';
+    }
+
+    if (!computedStyle.width) {
+      computedStyle.width = '100%';
     }
 
     return (
