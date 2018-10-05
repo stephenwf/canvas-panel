@@ -122,11 +122,12 @@ class MobileViewer extends Component {
     setViewport: () => null,
   };
 
-  state = { open: false, constrained: false };
+  state = { open: false, constrained: false, offset: 0 };
 
   onConstrain = (viewer, x, y) => {
     if (this.props.applyOffset) {
       this.props.applyOffset(-x);
+      this.setState({ offset: -x });
     }
     this.setState({ constrained: true });
     if (y) {
@@ -148,11 +149,13 @@ class MobileViewer extends Component {
     if (this.props.onDragStart) {
       this.props.onDragStart();
     }
+    this.setState({ dragging: true });
   };
   onDragStop = viewer => {
     if (this.props.onDragStop) {
       this.props.onDragStop();
     }
+    this.setState({ dragging: false });
 
     if (this.props.applyOffset) {
       this.props.applyOffset(0);
@@ -161,43 +164,53 @@ class MobileViewer extends Component {
   };
 
   render() {
-    const { open, constrained } = this.state;
+    const { open, constrained, offset, dragging } = this.state;
     const { displayStatic, onDragStart, onDragStop, ...props } = this.props;
     return (
-      <div style={{ height: '100%' }}>
-        <div
-          style={{ height: '100%' }}
-          onClick={() => this.setState(s => ({ open: !s.open }))}
-        >
-          {displayStatic ? (
-            <StaticImageViewport {...props} />
-          ) : (
-            <SingleTileSource {...props}>
-              <FullPageViewport
-                setRef={this.props.setViewport}
-                position="absolute"
+      <div style={{ height: '100%', background: open ? 'red' : '#000' }}>
+        <div style={{ height: '100%' }}>
+          <SingleTileSource {...props}>
+            <FullPageViewport
+              setRef={this.props.setViewport}
+              position="absolute"
+              interactive={true}
+              style={{ height: '100%' }}
+              osdOptions={{
+                visibilityRatio: 1,
+                constrainDuringPan: false,
+                showNavigator: false,
+                animationTime: 0.3,
+              }}
+              onConstrain={this.onConstrain}
+            >
+              <OpenSeadragonViewport
+                useMaxDimensions={true}
                 interactive={true}
-                style={{ height: '100%' }}
-                osdOptions={{
-                  visibilityRatio: 1,
-                  constrainDuringPan: false,
-                  showNavigator: false,
-                  animationTime: 0.3,
-                }}
-                onConstrain={this.onConstrain}
-              >
-                <OpenSeadragonViewport
-                  useMaxDimensions={true}
-                  interactive={true}
-                  onDragStart={this.onDragStart}
-                  onDragStop={this.onDragStop}
-                  osdOptions={this.osdOptions}
-                />
-              </FullPageViewport>
-            </SingleTileSource>
-          )}
+                onDragStart={this.onDragStart}
+                onDragStop={this.onDragStop}
+                osdOptions={this.osdOptions}
+              />
+            </FullPageViewport>
+          </SingleTileSource>
         </div>
-        {open ? <div>TESTING CONTENT</div> : null}
+        {/*
+        <div
+          onClick={() => this.setState(s => ({ open: !s.open }))}
+          style={{
+            color: '#000',
+            position: 'fixed',
+            height: open ? 200 : 50,
+            bottom: 0,
+            width: '100%',
+            background: '#fff',
+            transition: 'height .3s',
+            transform: dragging ? `translateX(${offset}px)` :`translateX(0px)`,
+            zIndex: 10,
+          }}
+        >
+          TESTING CONTENT
+        </div>
+        */}
       </div>
     );
   }
@@ -207,7 +220,6 @@ class MobilePageView extends Component {
   state = {
     isFullscreen: true,
     currentCanvas: null,
-    __mount: false,
     offset: 0,
     down: false,
   };
@@ -221,7 +233,7 @@ class MobilePageView extends Component {
   onDragStart = () => {
     this.setState({ down: true });
   };
-  onDragStop = func => {
+  onDragStop = () => {
     this.setState({ down: false });
   };
 
@@ -240,31 +252,15 @@ class MobilePageView extends Component {
   };
 
   applyOffset = offset => {
-    // if (offset === 0) {
-    //   this.currentViewer.viewport.centerSpringX.animationTime = 0.3;
-    //   this.currentViewer.viewport.centerSpringY.animationTime = 0.3;
-    //   this.currentViewer.viewport.zoomSpring.animationTime = 0.3;
-    // } else {
-    //   this.currentViewer.viewport.centerSpringX.animationTime = 0;
-    //   this.currentViewer.viewport.centerSpringY.animationTime = 0;
-    //   this.currentViewer.viewport.zoomSpring.animationTime = 0;
-    // }
     this.setState({ offset });
   };
 
   render() {
-    const { isFullscreen, __mount, offset, down } = this.state;
+    const { isFullscreen, offset, down } = this.state;
     const { bem, manifest } = this.props;
 
     if (isFullscreen) {
-      const {
-        canvas,
-        currentIndex,
-        region,
-        fullscreenProps,
-        previousRange,
-        nextRange,
-      } = this.props;
+      const { canvas, currentIndex } = this.props;
 
       const size = manifest.getSequenceByIndex(0).getCanvases().length;
 
