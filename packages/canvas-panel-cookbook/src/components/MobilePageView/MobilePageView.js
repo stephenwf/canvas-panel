@@ -16,82 +16,6 @@ import FlipMove from 'react-flip-move';
 import OpenSeadragonViewport from '@canvas-panel/core/src/viewers/OpenSeadragonViewport/OpenSeadragonViewport';
 import SingleTileSource from '@canvas-panel/core/src/components/SingleTileSource/SingleTileSource';
 
-// const PosedImage = props => <div {...props} />;
-//
-// const PosedImage = posed.div({
-//   flip: {
-//     transition: { duration: 300 },
-//   },
-//   enter: {
-//     opacity: 1,
-//     transition: { duration: 0 },
-//   },
-//   exit: {
-//     opacity: 0,
-//     transition: { duration: 0 },
-//   },
-// });
-
-class SimpleSlideTransition extends Component {
-  render() {
-    const { children, id, bem, timeout = 500 } = this.props;
-    return (
-      <TransitionGroup className={bem}>
-        <CSSTransition
-          key={id}
-          timeout={{
-            enter: 500,
-            exit: 0,
-          }}
-          classNames="fade"
-        >
-          {children}
-        </CSSTransition>
-      </TransitionGroup>
-    );
-  }
-}
-
-class FullScreenMobilePageView extends Component {
-  static defaultProps = {
-    threshold: 150,
-    onNext: () => null,
-    onPrevious: () => null,
-  };
-
-  componentWillReceiveProps(nextProps, nextContext) {
-    if (this.props.down && nextProps.down === false) {
-      if (nextProps.xDelta >= nextProps.threshold) {
-        nextProps.onPrevious();
-      }
-      if (nextProps.xDelta <= -nextProps.threshold) {
-        nextProps.onNext();
-      }
-    }
-  }
-
-  render() {
-    const { down, xDelta, children } = this.props;
-
-    return (
-      <div
-        style={{
-          // transform: down
-          //   ? `translate(${xDelta}px, ${0}px)`
-          //   : `translate(0px, 0px)`,
-          // transition: down ? null : 'transform .2s',
-          display: 'flex',
-          flexDirection: 'row',
-          alignItems: 'center',
-          height: '100vh',
-        }}
-      >
-        {children(xDelta)}
-      </div>
-    );
-  }
-}
-
 class PeakComponent extends Component {
   static defaultProps = {
     threshold: 150,
@@ -101,9 +25,12 @@ class PeakComponent extends Component {
     onPrevious: () => null,
   };
 
-  state = { down: false, revert: false, lastOffset: 0 };
+  state = { down: false, revert: false, lastOffset: 0, isTransitioning: false };
 
   componentWillReceiveProps(nextProps, nextContext) {
+    if (this.props.index !== nextProps.index) {
+      this.setState({ isTransitioning: false, revert: false });
+    }
     if (
       nextProps.down === false &&
       this.state.down === true &&
@@ -114,21 +41,23 @@ class PeakComponent extends Component {
 
     if (this.props.down && nextProps.down === false) {
       if (this.props.customOffset >= nextProps.threshold) {
-        this.setState({ down: false });
+        this.setState({ down: false, isTransitioning: true });
         nextProps.onPrevious();
       } else if (this.props.customOffset <= -nextProps.threshold) {
-        this.setState({ down: false });
+        this.setState({ down: false, isTransitioning: true });
         nextProps.onNext();
+        console.log('on next called.');
       }
     }
     if (this.state.down === false && nextProps.down === true) {
-      this.setState({ down: true, revert: true });
+      this.setState({ down: true });
     }
   }
 
   render() {
-    const { down, revert } = this.state;
+    const { revert, isTransitioning } = this.state;
     const {
+      down,
       customOffset,
       xDelta,
       index,
@@ -138,9 +67,9 @@ class PeakComponent extends Component {
     } = this.props;
     // const x = (down ? xDelta : 0) + customOffset;
     const x = customOffset;
-    const shouldAnimate = down === false && revert;
+    const shouldAnimate = down === false;
 
-    console.log({ down, index, customOffset });
+    console.log({ revert });
 
     return (
       <div
@@ -167,7 +96,7 @@ class PeakComponent extends Component {
                 width: '100%',
                 top: 0,
                 left: `calc(-100% + ${x}px)`,
-                // transition: shouldAnimate ? 'left .2s, margin-left .2s' : null,
+                transition: shouldAnimate ? 'left .2s' : null,
               }}
             >
               {renderLeft()}
@@ -182,7 +111,6 @@ class PeakComponent extends Component {
                 // marginLeft: !down ? `${-x}px` : null,
                 left: !down ? `calc(0px + ${x}px)` : null,
                 top: 0,
-                // transition: !down ? 'left .2s, margin-left .2s' : null,
               }}
             >
               {children}
@@ -194,8 +122,8 @@ class PeakComponent extends Component {
                 height: 600,
                 width: '100%',
                 left: `calc(100% + ${x}px)`,
+                transition: shouldAnimate ? 'left .2s' : null,
                 top: 0,
-                // transition: shouldAnimate ? 'left .2s' : null,
               }}
             >
               {renderRight()}
@@ -207,9 +135,12 @@ class PeakComponent extends Component {
   }
 }
 
-const ConnectedFSMPV = withGesture(FullScreenMobilePageView);
-
 class MobileViewer extends Component {
+  static defaultProps = {
+    applyOffset: () => null,
+    setViewport: () => null,
+  };
+
   state = { open: false, constrained: false };
 
   onConstrain = (viewer, x) => {
@@ -223,29 +154,31 @@ class MobileViewer extends Component {
   springCache = {};
 
   onDragStart = viewer => {
-    this.springCache.centerSpringX =
-      viewer.viewport.centerSpringX.animationTime;
-    this.springCache.centerSpringY =
-      viewer.viewport.centerSpringY.animationTime;
-    this.springCache.zoomSprint = viewer.viewport.zoomSpring.animationTime;
-
-    viewer.viewport.centerSpringX.animationTime = 0;
-    viewer.viewport.centerSpringY.animationTime = 0;
-    viewer.viewport.zoomSpring.animationTime = 0;
-
     if (this.props.onDragStart) {
       this.props.onDragStart();
+      // this.springCache.centerSpringX =
+      //   viewer.viewport.centerSpringX.animationTime;
+      // this.springCache.centerSpringY =
+      //   viewer.viewport.centerSpringY.animationTime;
+      // this.springCache.zoomSprint = viewer.viewport.zoomSpring.animationTime;
+      //
+      // viewer.viewport.centerSpringX.animationTime = 0;
+      // viewer.viewport.centerSpringY.animationTime = 0;
+      // viewer.viewport.zoomSpring.animationTime = 0;
     }
   };
   onDragStop = viewer => {
     if (this.props.onDragStop) {
       this.props.onDragStop();
+
+      // viewer.viewport.centerSpringX.animationTime = this.springCache.centerSpringX;
+      // viewer.viewport.centerSpringY.animationTime = this.springCache.centerSpringY;
+      // viewer.viewport.zoomSpring.animationTime = this.springCache.zoomSprint;
     }
 
-    viewer.viewport.centerSpringX.animationTime = this.springCache.centerSpringX;
-    viewer.viewport.centerSpringY.animationTime = this.springCache.centerSpringY;
-    viewer.viewport.zoomSpring.animationTime = this.springCache.zoomSprint;
-
+    if (this.props.applyOffset) {
+      this.props.applyOffset(0);
+    }
     this.setState({ constrained: false });
   };
 
@@ -264,7 +197,7 @@ class MobileViewer extends Component {
             <SingleTileSource {...props}>
               <FullPageViewport
                 // onUpdateViewport={this.updateViewport}
-                setRef={this.setViewport}
+                setRef={this.props.setViewport}
                 position="absolute"
                 interactive={true}
                 style={{ height: '100%' }}
@@ -311,8 +244,35 @@ class MobilePageView extends Component {
   onDragStart = () => {
     this.setState({ down: true });
   };
-  onDragStop = () => {
+  onDragStop = func => {
     this.setState({ down: false });
+  };
+
+  nextRange = () => {
+    this.viewport.viewer.viewer.viewport.applyConstraints(true);
+    this.props.nextRange();
+  };
+
+  previousRange = () => {
+    this.viewport.viewer.viewer.viewport.applyConstraints(true);
+    this.props.previousRange();
+  };
+
+  setViewport = viewport => {
+    this.viewport = viewport;
+  };
+
+  applyOffset = offset => {
+    // if (offset === 0) {
+    //   this.currentViewer.viewport.centerSpringX.animationTime = 0.3;
+    //   this.currentViewer.viewport.centerSpringY.animationTime = 0.3;
+    //   this.currentViewer.viewport.zoomSpring.animationTime = 0.3;
+    // } else {
+    //   this.currentViewer.viewport.centerSpringX.animationTime = 0;
+    //   this.currentViewer.viewport.centerSpringY.animationTime = 0;
+    //   this.currentViewer.viewport.zoomSpring.animationTime = 0;
+    // }
+    this.setState({ offset });
   };
 
   render() {
@@ -341,8 +301,8 @@ class MobilePageView extends Component {
         <PeakComponent
           down={down}
           customOffset={offset}
-          onNext={nextRange}
-          onPrevious={previousRange}
+          onNext={this.nextRange}
+          onPrevious={this.previousRange}
           renderLeft={() =>
             prev ? <MobileViewer manifest={manifest} canvas={prev} /> : null
           }
@@ -352,201 +312,14 @@ class MobilePageView extends Component {
           index={currentIndex}
         >
           <MobileViewer
+            setViewport={this.setViewport}
             manifest={manifest}
             canvas={canvas}
             onDragStart={this.onDragStart}
             onDragStop={this.onDragStop}
-            applyOffset={o => this.setState({ offset: o })}
+            applyOffset={this.applyOffset}
           />
         </PeakComponent>
-      );
-
-      return (
-        <div
-          style={{
-            position: 'fixed',
-            top: 0,
-            bottom: 0,
-            left: 0,
-            right: 0,
-            background: '#000',
-            color: '#fff',
-            zIndex: 9999999,
-            display: 'flex',
-            alignItems: 'center',
-          }}
-        >
-          <div style={{ flex: 1, position: 'relative' }}>
-            <div
-              style={{
-                position: 'absolute',
-                height: 600,
-                width: '100%',
-                background: 'blue',
-                opacity: 0.5,
-                transform: `translateX(calc(100% + ${
-                  __mount ? '0px' : '-100%'
-                }))`,
-                transition: 'transform .3s',
-              }}
-            />
-            <div
-              style={{
-                position: 'absolute',
-                height: 600,
-                width: '100%',
-                opacity: 0.5,
-                background: 'green',
-                transform: `translateX(calc(0% + ${
-                  __mount ? '0px' : '-100%'
-                }))`,
-                transition: 'transform .3s',
-                zIndex: 5,
-              }}
-            />
-            <div
-              style={{
-                position: 'absolute',
-                height: 600,
-                width: '100%',
-                opacity: 0.5,
-                background: 'red',
-                transform: `translateX(calc(-100% + ${
-                  __mount ? '0px' : '-100%'
-                }))`,
-                transition: 'transform .3s',
-              }}
-            />
-          </div>
-        </div>
-      );
-    }
-
-    if (isFullscreen) {
-      const {
-        canvas,
-        currentIndex,
-        region,
-        fullscreenProps,
-        previousRange,
-        nextRange,
-      } = this.props;
-
-      const next = manifest
-        .getSequenceByIndex(0)
-        .getCanvasByIndex(currentIndex + 1);
-
-      const prev = manifest
-        .getSequenceByIndex(0)
-        .getCanvasByIndex(currentIndex - 1);
-
-      const flexStyle = {
-        flexGrow: 0,
-        flexShrink: 0,
-        width: '50%',
-        display: 'block',
-        background: 'red',
-        transition: 'transform .3s',
-      };
-
-      return (
-        <div
-          style={{
-            position: 'fixed',
-            top: 0,
-            bottom: 0,
-            left: 0,
-            right: 0,
-            background: '#000',
-            color: '#fff',
-            zIndex: 9999999,
-            width: '200%',
-            transform: 'translateX(-50%)',
-          }}
-        >
-          <CanvasDetail canvas={canvas}>
-            {({ label, body, attributionLabel, attribution }) => (
-              <ConnectedFSMPV onNext={nextRange} onPrevious={previousRange}>
-                {xDelta => (
-                  <FlipMove typeName={null}>
-                    {prev ? (
-                      <div
-                        key={currentIndex - 1}
-                        data-key={currentIndex - 1}
-                        style={{
-                          ...flexStyle,
-                          transform: `translateX(${xDelta}px)`,
-                        }}
-                      >
-                        <StaticImageViewport
-                          manifest={manifest}
-                          canvas={prev}
-                          maxHeight={200}
-                          maxWidth={200}
-                        />
-                      </div>
-                    ) : (
-                      <div
-                        key={currentIndex - 1}
-                        data-key={currentIndex - 1}
-                        style={{
-                          ...flexStyle,
-                          transform: `translateX(${xDelta}px)`,
-                        }}
-                      />
-                    )}
-                    <div
-                      key={currentIndex}
-                      data-key={currentIndex}
-                      style={{
-                        ...flexStyle,
-                        transform: `translateX(${xDelta}px)`,
-                      }}
-                    >
-                      <StaticImageViewport
-                        className={bem.element('canvas-image')}
-                        manifest={manifest}
-                        canvas={canvas}
-                        maxHeight={200}
-                        maxWidth={200}
-                      >
-                        <div className={bem.element('attribution')}>
-                          {attributionLabel} {attribution}
-                        </div>
-                      </StaticImageViewport>
-                    </div>
-                    {next ? (
-                      <div
-                        key={currentIndex + 1}
-                        data-key={currentIndex + 1}
-                        style={{
-                          ...flexStyle,
-                          transform: `translateX(${xDelta}px)`,
-                        }}
-                      >
-                        <StaticImageViewport
-                          manifest={manifest}
-                          canvas={next}
-                          maxHeight={200}
-                          maxWidth={200}
-                        />
-                      </div>
-                    ) : (
-                      <div
-                        key={currentIndex + 1}
-                        data-key={currentIndex + 1}
-                        style={{
-                          ...flexStyle,
-                          transform: `translateX(${xDelta}px)`,
-                        }}
-                      />
-                    )}
-                  </FlipMove>
-                )}
-              </ConnectedFSMPV>
-            )}
-          </CanvasDetail>
-        </div>
       );
     }
 
