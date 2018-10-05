@@ -13,6 +13,8 @@ import { CSSTransition, TransitionGroup } from 'react-transition-group';
 import posed, { PoseGroup } from 'react-pose';
 import Carousel from 'nuka-carousel';
 import FlipMove from 'react-flip-move';
+import OpenSeadragonViewport from '@canvas-panel/core/src/viewers/OpenSeadragonViewport/OpenSeadragonViewport';
+import SingleTileSource from '@canvas-panel/core/src/components/SingleTileSource/SingleTileSource';
 
 // const PosedImage = props => <div {...props} />;
 //
@@ -90,15 +92,16 @@ class FullScreenMobilePageView extends Component {
   }
 }
 
-@withGesture
 class PeakComponent extends Component {
   static defaultProps = {
     threshold: 150,
+    customOffset: 0,
+    lastOffset: 0,
     onNext: () => null,
     onPrevious: () => null,
   };
 
-  state = { down: false, revert: false };
+  state = { down: false, revert: false, lastOffset: 0 };
 
   componentWillReceiveProps(nextProps, nextContext) {
     if (
@@ -106,21 +109,26 @@ class PeakComponent extends Component {
       this.state.down === true &&
       this.props.index !== nextProps.index
     ) {
-      this.setState({ down: false, revert: false });
+      this.setState({ down: false, revert: false, customOffset: 0 });
     }
 
+    if (nextProps.customOffset) {
+      this.setState({ lastOffset: nextProps.customOffset });
+    }
+
+    // console.log('down?', this.props.down, nextProps.down);
+
     if (this.props.down && nextProps.down === false) {
-      // @todo add length check here to revert when you reach the end.
-      if (nextProps.xDelta >= nextProps.threshold) {
+      if (this.props.customOffset >= nextProps.threshold) {
+        this.setState({ down: false });
         nextProps.onPrevious();
-      } else if (nextProps.xDelta <= -nextProps.threshold) {
+      } else if (this.props.customOffset <= -nextProps.threshold) {
+        this.setState({ down: false });
         nextProps.onNext();
-      } else {
-        this.setState({ down: false, revert: true });
       }
     }
     if (this.state.down === false && nextProps.down === true) {
-      this.setState({ down: true });
+      this.setState({ down: true, revert: true });
     }
   }
 
@@ -134,8 +142,11 @@ class PeakComponent extends Component {
       renderRight,
       children,
     } = this.props;
-    const x = (down ? xDelta : 0) + customOffset;
-    const shouldAnimate = revert && down === false;
+    // const x = (down ? xDelta : 0) + customOffset;
+    const x = customOffset;
+    const shouldAnimate = down === false && revert;
+
+    console.log({ down, index, customOffset });
 
     return (
       <div
@@ -162,7 +173,7 @@ class PeakComponent extends Component {
                 width: '100%',
                 top: 0,
                 left: `calc(-100% + ${x}px)`,
-                transition: shouldAnimate ? 'left .2s' : null,
+                // transition: shouldAnimate ? 'left .2s, margin-left .2s' : null,
               }}
             >
               {renderLeft()}
@@ -173,9 +184,11 @@ class PeakComponent extends Component {
                 position: 'absolute',
                 height: 600,
                 width: '100%',
-                left: `calc(0px + ${x}px)`,
+                // left: !down ? `calc(0px + ${x}px)` : null,
+                // marginLeft: !down ? `${-x}px` : null,
+                // left: !down ? `calc(0px + ${x}px)` : null,
                 top: 0,
-                transition: shouldAnimate ? 'left .2s' : null,
+                // transition: !down ? 'left .2s, margin-left .2s' : null,
               }}
             >
               {children}
@@ -188,7 +201,7 @@ class PeakComponent extends Component {
                 width: '100%',
                 left: `calc(100% + ${x}px)`,
                 top: 0,
-                transition: shouldAnimate ? 'left .2s' : null,
+                // transition: shouldAnimate ? 'left .2s' : null,
               }}
             >
               {renderRight()}
@@ -203,14 +216,80 @@ class PeakComponent extends Component {
 const ConnectedFSMPV = withGesture(FullScreenMobilePageView);
 
 class MobileViewer extends Component {
-  state = { open: false };
+  state = { open: false, constrained: false };
+
+  onConstrain = (viewer, x) => {
+    // viewer.getZoom();
+    if (this.props.applyOffset) {
+      this.props.applyOffset(-x);
+    }
+    this.setState({ constrained: true });
+  };
+
+  springCache = {};
+
+  onDragStart = viewer => {
+    this.springCache.centerSpringX =
+      viewer.viewport.centerSpringX.animationTime;
+    this.springCache.centerSpringY =
+      viewer.viewport.centerSpringY.animationTime;
+    this.springCache.zoomSprint = viewer.viewport.zoomSpring.animationTime;
+
+    viewer.viewport.centerSpringX.animationTime = 0;
+    viewer.viewport.centerSpringY.animationTime = 0;
+    viewer.viewport.zoomSpring.animationTime = 0;
+
+    if (this.props.onDragStart) {
+      this.props.onDragStart();
+    }
+  };
+  onDragStop = viewer => {
+    if (this.props.onDragStop) {
+      this.props.onDragStop();
+    }
+    viewer.viewport.centerSpringX.animationTime = this.springCache.centerSpringX;
+    viewer.viewport.centerSpringY.animationTime = this.springCache.centerSpringY;
+    viewer.viewport.zoomSpring.animationTime = this.springCache.zoomSprint;
+
+    this.setState({ constrained: false });
+  };
+
   render() {
-    const { open } = this.state;
-    const { ...props } = this.props;
+    const { open, constrained } = this.state;
+    const { displayStatic, ...props } = this.props;
     return (
-      <div>
-        <div onClick={() => this.setState(s => ({ open: !s.open }))}>
-          <StaticImageViewport {...props} />
+      <div style={{ height: '100%' }}>
+        <div
+          style={{ height: '100%' }}
+          onClick={() => this.setState(s => ({ open: !s.open }))}
+        >
+          {displayStatic ? (
+            <StaticImageViewport {...props} />
+          ) : (
+            <SingleTileSource {...props}>
+              <FullPageViewport
+                // onUpdateViewport={this.updateViewport}
+                setRef={this.setViewport}
+                position="absolute"
+                interactive={true}
+                style={{ height: '100%' }}
+                osdOptions={{
+                  visibilityRatio: 1,
+                  constrainDuringPan: false,
+                  showNavigator: false,
+                }}
+                onConstrain={this.onConstrain}
+              >
+                <OpenSeadragonViewport
+                  useMaxDimensions={true}
+                  interactive={true}
+                  onDragStart={this.onDragStart}
+                  onDragStop={this.onDragStop}
+                  osdOptions={this.osdOptions}
+                />
+              </FullPageViewport>
+            </SingleTileSource>
+          )}
         </div>
         {open ? <div>TESTING CONTENT</div> : null}
       </div>
@@ -219,16 +298,24 @@ class MobileViewer extends Component {
 }
 
 class MobilePageView extends Component {
-  state = { isFullscreen: true, currentCanvas: null, __mount: false };
+  state = {
+    isFullscreen: true,
+    currentCanvas: null,
+    __mount: false,
+    offset: 0,
+    down: false,
+  };
 
-  componentWillMount() {
-    setInterval(() => {
-      this.setState(s => ({ __mount: !s.__mount }));
-    }, 1000);
-  }
+  onDragStart = () => {
+    this.setState({ down: true });
+  };
+  onDragStop = () => {
+    console.log('Drag stopped.');
+    this.setState({ down: false, offset: 0 });
+  };
 
   render() {
-    const { isFullscreen, __mount } = this.state;
+    const { isFullscreen, __mount, offset, down } = this.state;
     const { bem, manifest } = this.props;
 
     if (isFullscreen) {
@@ -251,36 +338,24 @@ class MobilePageView extends Component {
 
       return (
         <PeakComponent
-          customOffset={0}
+          down={down}
+          customOffset={offset}
           onNext={nextRange}
           onPrevious={previousRange}
           renderLeft={() =>
-            prev ? (
-              <MobileViewer
-                manifest={manifest}
-                canvas={prev}
-                maxHeight={200}
-                maxWidth={200}
-              />
-            ) : null
+            prev ? <MobileViewer manifest={manifest} canvas={prev} /> : null
           }
           renderRight={() =>
-            next ? (
-              <MobileViewer
-                manifest={manifest}
-                canvas={next}
-                maxHeight={200}
-                maxWidth={200}
-              />
-            ) : null
+            next ? <MobileViewer manifest={manifest} canvas={next} /> : null
           }
           index={currentIndex}
         >
           <MobileViewer
             manifest={manifest}
             canvas={canvas}
-            maxHeight={200}
-            maxWidth={200}
+            onDragStart={this.onDragStart}
+            onDragStop={this.onDragStop}
+            applyOffset={o => this.setState({ offset: o })}
           />
         </PeakComponent>
       );
@@ -325,6 +400,7 @@ class MobilePageView extends Component {
                   __mount ? '0px' : '-100%'
                 }))`,
                 transition: 'transform .3s',
+                zIndex: 5,
               }}
             />
             <div
