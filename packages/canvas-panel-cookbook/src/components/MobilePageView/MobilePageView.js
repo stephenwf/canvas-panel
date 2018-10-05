@@ -22,53 +22,32 @@ class PeakComponent extends Component {
   state = { down: false, revert: false, lastOffset: 0, isTransitioning: false };
 
   componentWillReceiveProps(nextProps, nextContext) {
-    if (this.props.index !== nextProps.index) {
-      this.setState({ isTransitioning: false, revert: false });
-    }
-    if (
-      nextProps.down === false &&
-      this.state.down === true &&
-      this.props.index !== nextProps.index
-    ) {
-      this.setState({ down: false, revert: false });
-    }
-
     if (this.props.down && nextProps.down === false) {
       if (
         this.props.customOffset >= nextProps.threshold &&
         this.props.index !== 0
       ) {
-        this.setState({ down: false, isTransitioning: true });
         nextProps.onPrevious();
       } else if (
         this.props.customOffset <= -nextProps.threshold &&
-        this.props.index + 1 <= this.props.size
+        this.props.index + 1 < this.props.size
       ) {
-        this.setState({ down: false, isTransitioning: true });
         nextProps.onNext();
       }
-    }
-    if (this.state.down === false && nextProps.down === true) {
-      this.setState({ down: true });
     }
   }
 
   render() {
-    const { revert, isTransitioning } = this.state;
     const {
       down,
       customOffset,
-      xDelta,
       index,
       renderLeft,
       renderRight,
       children,
     } = this.props;
-    // const x = (down ? xDelta : 0) + customOffset;
     const x = customOffset;
     const shouldAnimate = down === false;
-
-    console.log({ revert });
 
     return (
       <div
@@ -96,10 +75,10 @@ class PeakComponent extends Component {
               key={index - 1}
               style={{
                 position: 'absolute',
-                height: 600,
+                height: '100%',
                 width: '100%',
                 top: 0,
-                left: `calc(-100% + ${x}px)`,
+                left: `calc(-100% + ${x - 20}px)`,
                 transition: shouldAnimate ? 'left .3s' : null,
               }}
             >
@@ -109,10 +88,8 @@ class PeakComponent extends Component {
               key={index}
               style={{
                 position: 'absolute',
-                height: 600,
+                height: '100%',
                 width: '100%',
-                // left: !down ? `calc(0px + ${x}px)` : null,
-                // marginLeft: !down ? `${-x}px` : null,
                 left: !down ? `calc(0px + ${x}px)` : null,
                 top: 0,
               }}
@@ -123,9 +100,9 @@ class PeakComponent extends Component {
               key={index + 1}
               style={{
                 position: 'absolute',
-                height: 600,
+                height: '100%',
                 width: '100%',
-                left: `calc(100% + ${x}px)`,
+                left: `calc(100% + ${x + 20}px)`,
                 transition: shouldAnimate ? 'left .3s' : null,
                 top: 0,
               }}
@@ -148,7 +125,6 @@ class MobileViewer extends Component {
   state = { open: false, constrained: false };
 
   onConstrain = (viewer, x, y) => {
-    // viewer.getZoom();
     if (this.props.applyOffset) {
       this.props.applyOffset(-x);
     }
@@ -161,15 +137,12 @@ class MobileViewer extends Component {
   applyConstraints(viewer, immediately) {
     const bounds = viewer.viewport.getBoundsNoRotate();
     const constrainedBounds = viewer.viewport._applyBoundaryConstraints(bounds);
-    // viewer.viewport._raiseConstraintsEvent(immediately);
 
     constrainedBounds.x = bounds.x;
     if (bounds.y !== constrainedBounds.y) {
       viewer.viewport.fitBounds(constrainedBounds, immediately);
     }
   }
-
-  springCache = {};
 
   onDragStart = viewer => {
     if (this.props.onDragStart) {
@@ -201,7 +174,6 @@ class MobileViewer extends Component {
           ) : (
             <SingleTileSource {...props}>
               <FullPageViewport
-                // onUpdateViewport={this.updateViewport}
                 setRef={this.props.setViewport}
                 position="absolute"
                 interactive={true}
