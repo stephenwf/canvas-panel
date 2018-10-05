@@ -6,19 +6,13 @@ import {
 } from '@canvas-panel/core';
 import CanvasDetail from '../CanvasDetail/CanvasDetail';
 import './MobilePageView.scss';
-import SlideShow from '../Slideshow/SlideShow';
-import Slide from '../Slide/Slide';
-import { Gesture, withGesture } from 'react-with-gesture';
-import { CSSTransition, TransitionGroup } from 'react-transition-group';
-import posed, { PoseGroup } from 'react-pose';
-import Carousel from 'nuka-carousel';
 import FlipMove from 'react-flip-move';
 import OpenSeadragonViewport from '@canvas-panel/core/src/viewers/OpenSeadragonViewport/OpenSeadragonViewport';
 import SingleTileSource from '@canvas-panel/core/src/components/SingleTileSource/SingleTileSource';
 
 class PeakComponent extends Component {
   static defaultProps = {
-    threshold: 150,
+    threshold: 50,
     customOffset: 0,
     lastOffset: 0,
     onNext: () => null,
@@ -40,13 +34,18 @@ class PeakComponent extends Component {
     }
 
     if (this.props.down && nextProps.down === false) {
-      if (this.props.customOffset >= nextProps.threshold) {
+      if (
+        this.props.customOffset >= nextProps.threshold &&
+        this.props.index !== 0
+      ) {
         this.setState({ down: false, isTransitioning: true });
         nextProps.onPrevious();
-      } else if (this.props.customOffset <= -nextProps.threshold) {
+      } else if (
+        this.props.customOffset <= -nextProps.threshold &&
+        this.props.index + 1 <= this.props.size
+      ) {
         this.setState({ down: false, isTransitioning: true });
         nextProps.onNext();
-        console.log('on next called.');
       }
     }
     if (this.state.down === false && nextProps.down === true) {
@@ -87,7 +86,12 @@ class PeakComponent extends Component {
         }}
       >
         <div style={{ flex: 1, position: 'relative', height: '100%' }}>
-          <FlipMove typeName={null} enterAnimation="none" leaveAnimation="none">
+          <FlipMove
+            typeName={null}
+            enterAnimation="none"
+            leaveAnimation="none"
+            duration={300}
+          >
             <div
               key={index - 1}
               style={{
@@ -96,7 +100,7 @@ class PeakComponent extends Component {
                 width: '100%',
                 top: 0,
                 left: `calc(-100% + ${x}px)`,
-                transition: shouldAnimate ? 'left .2s' : null,
+                transition: shouldAnimate ? 'left .3s' : null,
               }}
             >
               {renderLeft()}
@@ -122,7 +126,7 @@ class PeakComponent extends Component {
                 height: 600,
                 width: '100%',
                 left: `calc(100% + ${x}px)`,
-                transition: shouldAnimate ? 'left .2s' : null,
+                transition: shouldAnimate ? 'left .3s' : null,
                 top: 0,
               }}
             >
@@ -143,37 +147,38 @@ class MobileViewer extends Component {
 
   state = { open: false, constrained: false };
 
-  onConstrain = (viewer, x) => {
+  onConstrain = (viewer, x, y) => {
     // viewer.getZoom();
     if (this.props.applyOffset) {
       this.props.applyOffset(-x);
     }
     this.setState({ constrained: true });
+    if (y) {
+      this.applyConstraints(viewer, true);
+    }
   };
+
+  applyConstraints(viewer, immediately) {
+    const bounds = viewer.viewport.getBoundsNoRotate();
+    const constrainedBounds = viewer.viewport._applyBoundaryConstraints(bounds);
+    // viewer.viewport._raiseConstraintsEvent(immediately);
+
+    constrainedBounds.x = bounds.x;
+    if (bounds.y !== constrainedBounds.y) {
+      viewer.viewport.fitBounds(constrainedBounds, immediately);
+    }
+  }
 
   springCache = {};
 
   onDragStart = viewer => {
     if (this.props.onDragStart) {
       this.props.onDragStart();
-      // this.springCache.centerSpringX =
-      //   viewer.viewport.centerSpringX.animationTime;
-      // this.springCache.centerSpringY =
-      //   viewer.viewport.centerSpringY.animationTime;
-      // this.springCache.zoomSprint = viewer.viewport.zoomSpring.animationTime;
-      //
-      // viewer.viewport.centerSpringX.animationTime = 0;
-      // viewer.viewport.centerSpringY.animationTime = 0;
-      // viewer.viewport.zoomSpring.animationTime = 0;
     }
   };
   onDragStop = viewer => {
     if (this.props.onDragStop) {
       this.props.onDragStop();
-
-      // viewer.viewport.centerSpringX.animationTime = this.springCache.centerSpringX;
-      // viewer.viewport.centerSpringY.animationTime = this.springCache.centerSpringY;
-      // viewer.viewport.zoomSpring.animationTime = this.springCache.zoomSprint;
     }
 
     if (this.props.applyOffset) {
@@ -205,7 +210,7 @@ class MobileViewer extends Component {
                   visibilityRatio: 1,
                   constrainDuringPan: false,
                   showNavigator: false,
-                  // animationTime: 0,
+                  animationTime: 0.3,
                 }}
                 onConstrain={this.onConstrain}
               >
@@ -289,6 +294,8 @@ class MobilePageView extends Component {
         nextRange,
       } = this.props;
 
+      const size = manifest.getSequenceByIndex(0).getCanvases().length;
+
       const next = manifest
         .getSequenceByIndex(0)
         .getCanvasByIndex(currentIndex + 1);
@@ -303,6 +310,7 @@ class MobilePageView extends Component {
           customOffset={offset}
           onNext={this.nextRange}
           onPrevious={this.previousRange}
+          size={size}
           renderLeft={() =>
             prev ? <MobileViewer manifest={manifest} canvas={prev} /> : null
           }
