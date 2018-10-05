@@ -109,14 +109,8 @@ class PeakComponent extends Component {
       this.state.down === true &&
       this.props.index !== nextProps.index
     ) {
-      this.setState({ down: false, revert: false, customOffset: 0 });
+      this.setState({ down: false, revert: false });
     }
-
-    if (nextProps.customOffset) {
-      this.setState({ lastOffset: nextProps.customOffset });
-    }
-
-    // console.log('down?', this.props.down, nextProps.down);
 
     if (this.props.down && nextProps.down === false) {
       if (this.props.customOffset >= nextProps.threshold) {
@@ -186,7 +180,7 @@ class PeakComponent extends Component {
                 width: '100%',
                 // left: !down ? `calc(0px + ${x}px)` : null,
                 // marginLeft: !down ? `${-x}px` : null,
-                // left: !down ? `calc(0px + ${x}px)` : null,
+                left: !down ? `calc(0px + ${x}px)` : null,
                 top: 0,
                 // transition: !down ? 'left .2s, margin-left .2s' : null,
               }}
@@ -247,6 +241,7 @@ class MobileViewer extends Component {
     if (this.props.onDragStop) {
       this.props.onDragStop();
     }
+
     viewer.viewport.centerSpringX.animationTime = this.springCache.centerSpringX;
     viewer.viewport.centerSpringY.animationTime = this.springCache.centerSpringY;
     viewer.viewport.zoomSpring.animationTime = this.springCache.zoomSprint;
@@ -256,7 +251,7 @@ class MobileViewer extends Component {
 
   render() {
     const { open, constrained } = this.state;
-    const { displayStatic, ...props } = this.props;
+    const { displayStatic, onDragStart, onDragStop, ...props } = this.props;
     return (
       <div style={{ height: '100%' }}>
         <div
@@ -277,6 +272,7 @@ class MobileViewer extends Component {
                   visibilityRatio: 1,
                   constrainDuringPan: false,
                   showNavigator: false,
+                  // animationTime: 0,
                 }}
                 onConstrain={this.onConstrain}
               >
@@ -306,12 +302,17 @@ class MobilePageView extends Component {
     down: false,
   };
 
+  componentWillReceiveProps(nextProps) {
+    if (nextProps.currentIndex !== this.props.currentIndex) {
+      this.setState({ offset: 0 });
+    }
+  }
+
   onDragStart = () => {
     this.setState({ down: true });
   };
   onDragStop = () => {
-    console.log('Drag stopped.');
-    this.setState({ down: false, offset: 0 });
+    this.setState({ down: false });
   };
 
   render() {
